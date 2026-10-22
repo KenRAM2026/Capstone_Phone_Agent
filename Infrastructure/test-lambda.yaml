@@ -1,0 +1,126 @@
+# TestLambda: returns how many accounts are in the Accounts table.
+#
+# Deploy (project account, us-west-2):
+#   aws cloudformation deploy --template-file Infrastructure/test-lambda.yaml \
+#     --stack-name test-lambda --capabilities CAPABILITY_IAM \
+#     --region us-west-2 --profile capstone
+#
+# Run it:
+#   aws lambda invoke --function-name TestLambda --region us-west-2 \
+#     --profile capstone out.json && cat out.json
+#
+# Remove it:
+#   aws cloudformation delete-stack --stack-name test-lambda \
+#     --region us-west-2 --profile capstone
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  TestLambda - a test function that returns how many accounts are in the
+  Accounts DynamoDB table. Read-only; the table is managed outside this stack.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+
+Parameters:
+  AccountsTableName:
+    Type: String
+    Default: Accounts
+    AllowedPattern: "[a-zA-Z0-9_.-]{3,255}"
+    Description: Name of the existing DynamoDB table that holds one item per account
+
+Resources:
+  TestLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: owns fn logs so retention is set (default = never expire); 14d enough for a test fn
+        must:
+          - name must match fn LoggingConfig, else logs go to an unmanaged group
+    Properties:
+      LogGroupName: /aws/lambda/TestLambda
+      RetentionInDays: 14
+
+  TestLambdaRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: least priv - Scan on accounts table + write own log group only; no managed policies
+        must:
+          - read-only on the table; never grant writes (a test fn must not change accounts)
+        mutable: review-required
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: count-accounts
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: dynamodb:Scan
+                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AccountsTableName}
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt TestLambdaLogGroup.Arn
+
+  TestLambda:
+    Type: AWS::Lambda::Function
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          smoke test that Lambda can reach the Accounts table; invoked by hand only (no trigger, so no DLQ).
+          Scan w/ Select=COUNT over DescribeTable ItemCount, which DynamoDB refreshes only ~every 6h.
+          Scan reads whole table: fine for small synthetic data, revisit if table grows large.
+          FunctionName fixed on purpose: team asked for "TestLambda".
+        must:
+          - table has no sort key, so 1 item = 1 account; if a sort key is added the count is wrong
+        mutable: free-to-tune
+        mutability:
+          FunctionName: must-never-change
+    Properties:
+      FunctionName: TestLambda
+      Description: Returns how many accounts are in the Accounts table
+      Runtime: python3.14
+      Handler: index.lambda_handler
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+      Role: !GetAtt TestLambdaRole.Arn
+      LoggingConfig:
+        LogGroup: !Ref TestLambdaLogGroup
+      Environment:
+        Variables:
+          ACCOUNTS_TABLE: !Ref AccountsTableName
+      Code:
+        ZipFile: |
+          import os
+
+          import boto3
+
+          dynamodb = boto3.client("dynamodb")
+          TABLE_NAME = os.environ["ACCOUNTS_TABLE"]
+
+          def lambda_handler(event, context):
+              # Count every account. Select=COUNT returns counts, not items, and the
+              # paginator keeps going past DynamoDB's 1 MB page limit.
+              paginator = dynamodb.get_paginator("scan")
+              pages = paginator.paginate(TableName=TABLE_NAME, Select="COUNT")
+              count = sum(page["Count"] for page in pages)
+              return {"table": TABLE_NAME, "accountCount": count}
+
+Outputs:
+  FunctionName:
+    Description: Name of the test function
+    Value: !Ref TestLambda
+  FunctionArn:
+    Description: ARN of the test function
+    Value: !GetAtt TestLambda.Arn
