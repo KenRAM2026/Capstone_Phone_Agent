@@ -3,13 +3,25 @@ import aws_cdk.assertions as assertions
 
 from infra.infra_stack import InfraStack
 
-# example tests. To run these tests, uncomment this file along with the example
-# resource in infra/infra_stack.py
-def test_sqs_queue_created():
+
+def test_customer_table_keys_and_phone_index():
     app = core.App()
     stack = InfraStack(app, "infra")
     template = assertions.Template.from_stack(stack)
 
-#     template.has_resource_properties("AWS::SQS::Queue", {
-#         "VisibilityTimeout": 300
-#     })
+    template.has_resource_properties(
+        "AWS::DynamoDB::Table",
+        {
+            "KeySchema": [{"AttributeName": "customer_id", "KeyType": "HASH"}],
+            "BillingMode": "PAY_PER_REQUEST",
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "phone_number-index",
+                    "KeySchema": [
+                        {"AttributeName": "phone_number", "KeyType": "HASH"}
+                    ],
+                    "Projection": {"ProjectionType": "KEYS_ONLY"},
+                }
+            ],
+        },
+    )
