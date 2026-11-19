@@ -147,3 +147,20 @@ class DataTables(Construct):
             # Mock data only: destroying the stack also deletes the table.
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        # Call state: one row per active call, keyed by the Connect call ID.
+        # Lambda writes it each turn and deletes it at call end. expires_at is
+        # the TTL backstop: DynamoDB removes the row after that time if the
+        # hangup clearing failed. TTL deletion can lag, so Lambda must also
+        # check expires_at itself. The TTL length is set in Lambda code.
+        self.call_state_table = dynamodb.Table(
+            self,
+            "CallStateTable",
+            partition_key=dynamodb.Attribute(
+                name="call_id", type=dynamodb.AttributeType.STRING
+            ),
+            time_to_live_attribute="expires_at",
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only: destroying the stack also deletes the table.
+            removal_policy=RemovalPolicy.DESTROY,
+        )

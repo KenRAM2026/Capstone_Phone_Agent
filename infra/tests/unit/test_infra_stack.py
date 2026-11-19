@@ -134,3 +134,21 @@ def test_disputes_table_keys():
             "BillingMode": "PAY_PER_REQUEST",
         },
     )
+
+
+def test_call_state_table_key_and_ttl():
+    app = core.App()
+    stack = InfraStack(app, "infra")
+    template = assertions.Template.from_stack(stack)
+
+    template.has_resource_properties(
+        "AWS::DynamoDB::Table",
+        {
+            "KeySchema": [{"AttributeName": "call_id", "KeyType": "HASH"}],
+            "TimeToLiveSpecification": {
+                "AttributeName": "expires_at",
+                "Enabled": True,
+            },
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+    )
