@@ -164,3 +164,23 @@ class DataTables(Construct):
             # Mock data only: destroying the stack also deletes the table.
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        # Audit log: one item per important event in a call. A Query on
+        # call_id returns that call's events in order. The sort key starts
+        # with the date-time so events stay in order; the sequence number on
+        # the end keeps two events in the same second distinct. Never store
+        # verification values or full card numbers in these items.
+        self.audit_log_table = dynamodb.Table(
+            self,
+            "AuditLogTable",
+            partition_key=dynamodb.Attribute(
+                name="call_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp_seq", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only. A real audit log would use RETAIN, since
+            # deleting audit history defeats its purpose.
+            removal_policy=RemovalPolicy.DESTROY,
+        )

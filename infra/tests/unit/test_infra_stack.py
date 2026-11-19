@@ -152,3 +152,20 @@ def test_call_state_table_key_and_ttl():
             "BillingMode": "PAY_PER_REQUEST",
         },
     )
+
+
+def test_audit_log_table_keys():
+    app = core.App()
+    stack = InfraStack(app, "infra")
+    template = assertions.Template.from_stack(stack)
+
+    template.has_resource_properties(
+        "AWS::DynamoDB::Table",
+        {
+            "KeySchema": [
+                {"AttributeName": "call_id", "KeyType": "HASH"},
+                {"AttributeName": "timestamp_seq", "KeyType": "RANGE"},
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+    )
