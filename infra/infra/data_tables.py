@@ -109,3 +109,22 @@ class DataTables(Construct):
             # Mock data only: destroying the stack also deletes the table.
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        # Payments: one item per confirmed payment. payment_id holds the
+        # request ID created once at the caller's yes, so a retry arrives
+        # with the same key and a conditional write ("only if this key does
+        # not exist") refuses the duplicate instead of charging twice.
+        # The conditional write itself is Lambda code, added later.
+        self.payments_table = dynamodb.Table(
+            self,
+            "PaymentsTable",
+            partition_key=dynamodb.Attribute(
+                name="account_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="payment_id", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only: destroying the stack also deletes the table.
+            removal_policy=RemovalPolicy.DESTROY,
+        )
