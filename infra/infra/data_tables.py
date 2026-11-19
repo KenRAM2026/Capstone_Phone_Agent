@@ -30,3 +30,20 @@ class DataTables(Construct):
             ),
             projection_type=dynamodb.ProjectionType.KEYS_ONLY,
         )
+
+        # Accounts: one customer can have several accounts. A Query on
+        # customer_id returns all of that customer's accounts; account_id
+        # (sort key) tells them apart inside the customer's partition.
+        self.accounts_table = dynamodb.Table(
+            self,
+            "AccountsTable",
+            partition_key=dynamodb.Attribute(
+                name="customer_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="account_id", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only: destroying the stack also deletes the table.
+            removal_policy=RemovalPolicy.DESTROY,
+        )

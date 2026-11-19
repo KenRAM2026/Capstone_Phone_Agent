@@ -25,3 +25,20 @@ def test_customer_table_keys_and_phone_index():
             ],
         },
     )
+
+
+def test_accounts_table_keys():
+    app = core.App()
+    stack = InfraStack(app, "infra")
+    template = assertions.Template.from_stack(stack)
+
+    template.has_resource_properties(
+        "AWS::DynamoDB::Table",
+        {
+            "KeySchema": [
+                {"AttributeName": "customer_id", "KeyType": "HASH"},
+                {"AttributeName": "account_id", "KeyType": "RANGE"},
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+    )
