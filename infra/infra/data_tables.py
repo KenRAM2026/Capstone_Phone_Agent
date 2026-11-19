@@ -74,3 +74,21 @@ class DataTables(Construct):
             ),
             projection_type=dynamodb.ProjectionType.KEYS_ONLY,
         )
+
+        # Transactions: purchases on an account. The sort key starts with the
+        # date (year-month-day sorts correctly as text) so items are stored in
+        # date order; a Query newest-first with Limit 5 reads only 5 items.
+        # The transaction id on the end keeps same-day purchases distinct.
+        self.transactions_table = dynamodb.Table(
+            self,
+            "TransactionsTable",
+            partition_key=dynamodb.Attribute(
+                name="account_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="date_txn_id", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only: destroying the stack also deletes the table.
+            removal_policy=RemovalPolicy.DESTROY,
+        )
