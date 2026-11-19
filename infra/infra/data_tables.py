@@ -128,3 +128,22 @@ class DataTables(Construct):
             # Mock data only: destroying the stack also deletes the table.
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        # Disputes: one item per disputed transaction. The (account_id,
+        # transaction_id) pair is unique, so a conditional write ("only if
+        # this key does not exist") refuses a second dispute on the same
+        # transaction. The request ID is a normal attribute: Lambda uses it
+        # to tell a retry (same request ID) from a genuine second attempt.
+        self.disputes_table = dynamodb.Table(
+            self,
+            "DisputesTable",
+            partition_key=dynamodb.Attribute(
+                name="account_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="transaction_id", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only: destroying the stack also deletes the table.
+            removal_policy=RemovalPolicy.DESTROY,
+        )
