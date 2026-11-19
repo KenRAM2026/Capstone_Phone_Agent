@@ -47,3 +47,30 @@ class DataTables(Construct):
             # Mock data only: destroying the stack also deletes the table.
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        # Cards: physical cards on an account. A Query on account_id lists
+        # every card on the account; card_id (sort key) tells them apart.
+        self.cards_table = dynamodb.Table(
+            self,
+            "CardsTable",
+            partition_key=dynamodb.Attribute(
+                name="account_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="card_id", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only: destroying the stack also deletes the table.
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        # Identify fallback: the caller says the last 4 of their card. last4 is
+        # not unique, so a Query may return several cards (a shortlist that
+        # verification narrows down). Keys-only: returns account_id and card_id.
+        self.cards_table.add_global_secondary_index(
+            index_name="last4-index",
+            partition_key=dynamodb.Attribute(
+                name="last4", type=dynamodb.AttributeType.STRING
+            ),
+            projection_type=dynamodb.ProjectionType.KEYS_ONLY,
+        )
