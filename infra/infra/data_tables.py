@@ -92,3 +92,20 @@ class DataTables(Construct):
             # Mock data only: destroying the stack also deletes the table.
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        # Bank accounts on file: the only accounts payments and autopay may
+        # use. A Query on customer_id lists a customer's bank accounts;
+        # bank_account_id (sort key) tells them apart.
+        self.bank_accounts_table = dynamodb.Table(
+            self,
+            "BankAccountsTable",
+            partition_key=dynamodb.Attribute(
+                name="customer_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="bank_account_id", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            # Mock data only: destroying the stack also deletes the table.
+            removal_policy=RemovalPolicy.DESTROY,
+        )

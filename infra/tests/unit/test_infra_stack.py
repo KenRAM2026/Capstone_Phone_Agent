@@ -83,3 +83,20 @@ def test_transactions_table_keys():
             "BillingMode": "PAY_PER_REQUEST",
         },
     )
+
+
+def test_bank_accounts_table_keys():
+    app = core.App()
+    stack = InfraStack(app, "infra")
+    template = assertions.Template.from_stack(stack)
+
+    template.has_resource_properties(
+        "AWS::DynamoDB::Table",
+        {
+            "KeySchema": [
+                {"AttributeName": "customer_id", "KeyType": "HASH"},
+                {"AttributeName": "bank_account_id", "KeyType": "RANGE"},
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+    )
